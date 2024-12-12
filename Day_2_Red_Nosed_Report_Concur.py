@@ -1,7 +1,11 @@
+from multiprocessing import Pool, cpu_count
+
+
 class RedNosedReport:
     def __init__(self, file_path):
         self.file_path = file_path
         self.input = self._read_file()
+        self.num_processes = cpu_count()
 
     def _read_file(self):
         lol = []
@@ -11,10 +15,31 @@ class RedNosedReport:
                 lol.append(list(map(int, line.strip().split())))
         return lol
 
+    def split_chunk(self, data):
+        chunk_size = len(data) // self.num_processes
+        remainder = len(data) % self.num_processes
+
+        chunks = []
+        start_idx = 0
+
+        for i in range(self.num_processes):
+            end_idx = start_idx + chunk_size + (1 if i < remainder else 0)
+            chunks.append(data[start_idx:end_idx])
+            start_idx = end_idx
+
+        return chunks
+
     def calculate_safe(self):
+        chunks = self.split_chunk(self.input)
+        with Pool(self.num_processes) as pool:
+            results = pool.map(self.calculate_safe_chunk, chunks)
+
+        return sum(results)
+
+    def calculate_safe_chunk(self, chunk):
         counter = 0
 
-        for line in self.input:
+        for line in chunk:
             if self.is_increasing_safe(line) or self.is_decreasing_safe(line):
                 counter += 1
 
@@ -42,9 +67,16 @@ class RedNosedReport:
         return False
 
     def calc_safe_with_dampener(self):
+        chunks = self.split_chunk(self.input)
+        with Pool(self.num_processes) as pool:
+            results = pool.map(self.calc_safe_with_dampener_chunk, chunks)
+
+        return sum(results)
+
+    def calc_safe_with_dampener_chunk(self, chunk):
         counter = 0
 
-        for line in self.input:
+        for line in chunk:
             if self.is_safe_with_removal(line):
                 counter += 1
 
